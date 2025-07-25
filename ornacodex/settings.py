@@ -95,7 +95,20 @@ FEED_EXPORT_ENCODING = "utf-8"
 # Default value
 BASE_URL = "https://playorna.com"
 BASE_LANGUAGE = 'en'
-SUPPORTED_LANGUAGES = [BASE_LANGUAGE, 'zh-hans', 'zh-hant']
+SUPPORTED_LANGUAGES = [
+    BASE_LANGUAGE,  # English
+    'es',           # Spanish
+    'fr',           # French
+    'de',           # German
+    'zh-hans',      # Chinese Simplified
+    'zh-hant',      # Chinese Traditional
+    'ja',           # Japanese
+    'ko',           # Korean
+    'pt',           # Portuguese
+    'ru',           # Russian
+    'ar',           # Arabic
+    'it',           # Italian
+]
 # SUPPORTED_LANGUAGE = [BASE_LANGUAGE]
 VERSION = '1.0.0'
 
