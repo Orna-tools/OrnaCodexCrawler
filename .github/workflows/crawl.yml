@@ -1,4 +1,4 @@
-name: Crawl Codex
+name: Update Orna Database
 
 on:
   # push:
@@ -12,42 +12,74 @@ permissions:
   id-token: write
 
 jobs:
-  upload-data:
-    runs-on: ubuntu-latest
+  update-database:
+    runs-on: self-hosted
     steps:
-      - name: Checkout
+      - name: Checkout OrnaCodexCrawler
         uses: actions/checkout@v4
-      - name: Checkout data branch
+        
+      - name: Checkout OA_Database repository
         uses: actions/checkout@v4
         with:
-          ref: 'data'
-          path: './dump'
-      - name: Setup Python environment
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          python-version: 3.13
-      - run: uv sync
-      - name: Download Codex
-        run: uv run main.py download
-      - name: Parse Codex
-        run: uv run main.py codex
-      - name: Dump Toml
-        run: uv run main.py dump_toml --dump "dump/tarball"
-      - name: Upload artifact
+          repository: 'Orna-tools/OA_Database'
+          ref: 'main'
+          path: './OA_Database'
+          
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install scrapy tomlkit
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          
+      - name: Download and Clean Codex Data
+        run: python main.py download
+        
+      - name: Clean OA_Database repository
+        run: |
+          cd OA_Database
+          # Remove all files except .git and items.json files
+          find . -type f ! -path './.git/*' ! -name 'items.json' -delete
+          # Remove empty directories except .git
+          find . -type d -empty ! -path './.git*' -delete
+          
+      - name: Copy cleaned items to OA_Database
+        run: |
+          # Copy each language's items.json to OA_Database
+          for lang_dir in output/cleaned/*/; do
+            if [ -d "$lang_dir" ]; then
+              lang=$(basename "$lang_dir")
+              mkdir -p "OA_Database/$lang"
+              if [ -f "$lang_dir/items.json" ]; then
+                cp "$lang_dir/items.json" "OA_Database/$lang/"
+                echo "Copied items.json for language: $lang"
+              fi
+            fi
+          done
+          
+      - name: Upload cleaned data artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codex
-          path: ./output
-      - name: Push Changes
-        shell: bash
+          name: cleaned-orna-data
+          path: ./output/cleaned
+          
+      - name: Push changes to OA_Database
         run: |
-          cd dump
+          cd OA_Database
           git add .
           if [ ! -z "$(git --no-pager diff --staged)" ]; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -s -m "Data Update $(date +%Y%m%d%H%M)" -a
+            git commit -s -m "Update items data - $(date '+%Y-%m-%d %H:%M:%S UTC')" -a
             git push
+            echo "✅ Successfully pushed updated data to OA_Database"
+          else
+            echo "ℹ️ No changes detected, skipping push"
           fi
-      
+          
+      - name: Show completion status
+        run: |
+          echo "✅ Orna database update completed successfully!"
+          echo "📊 Data has been scraped, cleaned, and pushed to OA_Database repository"
+          echo "🕐 Completed at: $(date)"
