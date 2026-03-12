@@ -561,6 +561,34 @@ def analyze(scanned: dict, settings: Settings):
     translations = scanned['translations']
     value_types = scanned['value_types']
     item_types = scanned['item_types']
+    icons = scanned['icons']
+
+    # related entries
+    related_entries = defaultdict(list)
+
+    # summons pair
+    summons_pair = {}
+    base_translation = translations[base_language]
+    for entry_key, entry in entries.items():
+        if entry.get('category') in {'bosses', 'monsters'}:
+            name = base_translation['entries'][entry_key]['name'].removesuffix(
+                ' (Arisen)')
+            key = (name, entry['icon'])
+            # bosses will be overidden by monsters
+            # may have bugs
+            summons_pair[key] = entry_key
+
+    # related summons
+    for entry_key, entry in entries.items():
+        summons = entry.get('summons', [])
+        for summon in summons:
+            name = base_translation['msg']['status'][summon['name']]
+            icon = icons[summon['name']]
+            key = (name, icon)
+            summon_key = summons_pair.get(key)
+            if summon_key and summon_key not in related_entries[entry_key]:
+                related_entries[entry_key].append(summon_key)
+                related_entries[summon_key].append(entry_key)
 
     # set item_types
     for its in item_types[base_language]:
@@ -603,14 +631,18 @@ def analyze(scanned: dict, settings: Settings):
                         spell_key = skills_filp.get(name)
                         if spell_key:
                             spell['key'] = spell_key
+                            # related spells
+                            related_entries[spell_key].append(entry_key)
         if entry['category'] == 'followers':
-            for i, bonds in enumerate(entry.get('bestial_bond', [])):
-                for ii, bond in enumerate(bonds):
+            for bonds in entry.get('bestial_bond', []):
+                for bond in bonds:
                     if bond['type'] == 'ABILITY':
                         name = spell_names.get(bond['name'])
                         spell_key = skills_filp.get(name)
                         if spell_key:
                             bond['key'] = spell_key
+                            # related spells
+                            related_entries[spell_key].append(entry_key)
 
     # used_by, spells used by enemies
     for entry_key, entry in entries.items():
@@ -631,6 +663,12 @@ def analyze(scanned: dict, settings: Settings):
                 if 'dismantled_by' not in material_entry:
                     material_entry['dismantled_by'] = []
                 material_entry['dismantled_by'].append(entry_key)
+
+    # patch related entries
+    for entry_key, entry in entries.items():
+        related = related_entries.get(entry_key)
+        if related:
+            entry['related_to'] = related
 
     # patch value types
     for key in ['follower_stats', 'summon_stats']:
