@@ -54,7 +54,13 @@ class Spider(BaseSpider):
                 while any(d):
                     if any(d.xpath('self::hr | self::h4')):
                         break
-                    d_list.append(Exctractor.extract_drop(d))
+                    d_subs = d.xpath('.//*[@class="drop"]')
+                    if len(d_subs) > 1:
+                        # for summons
+                        for sub in d_subs:
+                            d_list.append(Exctractor.extract_drop(sub))
+                    else:
+                        d_list.append(Exctractor.extract_drop(d))
                     d = d.xpath("./following-sibling::*[1]")
                 tmp.append((drop_name, d_list))
             struct['drops'] = tmp
