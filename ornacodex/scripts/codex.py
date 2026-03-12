@@ -567,16 +567,20 @@ def analyze(scanned: dict, settings: Settings):
     related_entries = defaultdict(list)
 
     # summons pair
-    summons_pair = {}
+    summons_pair = defaultdict(dict)
     base_translation = translations[base_language]
     for entry_key, entry in entries.items():
         if entry.get('category') in {'bosses', 'monsters'}:
             name = base_translation['entries'][entry_key]['name'].removesuffix(
                 ' (Arisen)')
             key = (name, entry['icon'])
-            # bosses will be overidden by monsters
+            # use tier for appromixmate matching
             # may have bugs
-            summons_pair[key] = entry_key
+            tier = entry['tier']
+            conflict_summon = summons_pair[key].get(tier)
+            if (conflict_summon):
+                print('conflict key:', conflict_summon)
+            summons_pair[key][tier] = entry_key
 
     # related summons
     for entry_key, entry in entries.items():
@@ -585,7 +589,10 @@ def analyze(scanned: dict, settings: Settings):
             name = base_translation['msg']['status'][summon['name']]
             icon = icons[summon['name']]
             key = (name, icon)
-            summon_key = summons_pair.get(key)
+            tier = entry['tier']
+            summon_by_tier = summons_pair.get(key, {})
+            closest_key = min(summon_by_tier.keys(), key=lambda k: abs(k - tier))
+            summon_key = summon_by_tier.get(closest_key)
             if summon_key and summon_key not in related_entries[entry_key]:
                 related_entries[entry_key].append(summon_key)
                 related_entries[summon_key].append(entry_key)
