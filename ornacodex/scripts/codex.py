@@ -539,7 +539,10 @@ def scan(settings: Settings, input_dir: Path):
                     set_conflict_events(event, f'{value_key}.{index}')
     # mitigate bug of unordered events
     for language, translation in translations.items():
-        translation['msg']['events'].update(unordered_events[language])
+        events_msg = translation['msg']['events']
+        for key, value in unordered_events[language].items():
+            if key not in events_msg:
+                events_msg[key] = value
 
     item_types = load_item_types(input_dir.itemtypes, languages)
 
@@ -640,6 +643,7 @@ def analyze(scanned: dict, settings: Settings):
                             spell['key'] = spell_key
                             # related spells
                             related_entries[spell_key].append(entry_key)
+                            related_entries[entry_key].append(spell_key)
         if entry['category'] == 'followers':
             for bonds in entry.get('bestial_bond', []):
                 for bond in bonds:
@@ -650,6 +654,7 @@ def analyze(scanned: dict, settings: Settings):
                             bond['key'] = spell_key
                             # related spells
                             related_entries[spell_key].append(entry_key)
+                            related_entries[entry_key].append(spell_key)
 
     # used_by, spells used by enemies
     for entry_key, entry in entries.items():
