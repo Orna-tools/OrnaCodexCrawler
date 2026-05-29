@@ -594,11 +594,12 @@ def analyze(scanned: dict, settings: Settings):
             key = (name, icon)
             tier = entry['tier']
             summon_by_tier = summons_pair.get(key, {})
-            closest_key = min(summon_by_tier.keys(), key=lambda k: abs(k - tier))
-            summon_key = summon_by_tier.get(closest_key)
-            if summon_key and summon_key not in related_entries[entry_key]:
-                related_entries[entry_key].append(summon_key)
-                related_entries[summon_key].append(entry_key)
+            if any(summon_by_tier):
+                closest_key = min(summon_by_tier.keys(), key=lambda k: abs(k - tier))
+                summon_key = summon_by_tier.get(closest_key)
+                if summon_key and summon_key not in related_entries[entry_key]:
+                    related_entries[entry_key].append(summon_key)
+                    related_entries[summon_key].append(entry_key)
 
     # set item_types
     for its in item_types[base_language]:
