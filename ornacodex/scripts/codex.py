@@ -284,7 +284,7 @@ def scan(settings: Settings, input_dir: Path):
                             base_conds[index], cond)
             set_ent(f'{entry_key}.stats_conditions.{key}', base_conds)
 
-        if key in {'stat_bonus', 'bestial_bond_level'}:
+        if key in {'stat_bonus', 'bestial_bond_level', 'sprite_size'}:
             value_type = {'type': 'TEXT'}
             set_value_types('stats.'+key, value_type)
             base_value = Converter.convert_key(value)
@@ -413,6 +413,10 @@ def scan(settings: Settings, input_dir: Path):
                     # patch for bestial_bond_level
                     if stat_key == 'bestial_bond' and stat[1][-1].isdigit():
                         stat_key = 'bestial_bond_level'
+
+                    # patch for spells/crit_chance
+                    if stat_key == 'crit_chance' and entry_key.startswith('spells'):
+                        stat_key = 'spell_crit_chance'
 
                     # set stats key
                     set_msg_by_path('stats.' + stat_key, entry_stat_key_path)
