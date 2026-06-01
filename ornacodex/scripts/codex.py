@@ -414,10 +414,6 @@ def scan(settings: Settings, input_dir: Path):
                     if stat_key == 'bestial_bond' and stat[1][-1].isdigit():
                         stat_key = 'bestial_bond_level'
 
-                    # patch for spells/crit_chance
-                    if stat_key == 'crit_chance' and entry_key.startswith('spells'):
-                        stat_key = 'spell_crit_chance'
-
                     # set stats key
                     set_msg_by_path('stats.' + stat_key, entry_stat_key_path)
 
