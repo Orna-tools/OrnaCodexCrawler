@@ -18,7 +18,7 @@ def main(settings: Settings, input: Path = None, output: Path = None):
 
     with open(input_dir.joinpath(manifest['files']['codex'])) as f:
         codex = json.load(f)
-    with open(output_dir.joinpath('codex.yaml'), 'w') as f:
+    with open(output_dir.joinpath('codex.toml'), 'w') as f:
         tomlkit.dump({
             **codex,
             'entries': {f'{ent['category']}/{ent['id']}': ent for ent in codex['entries']},
