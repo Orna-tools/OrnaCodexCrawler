@@ -414,6 +414,10 @@ def scan(settings: Settings, input_dir: Path):
                     if stat_key == 'bestial_bond' and stat[1][-1].isdigit():
                         stat_key = 'bestial_bond_level'
 
+                    # patch for crit_chance_bonus
+                    if stat_key == 'crit_chance' and category == 'items':
+                        stat_key = 'crit_chance_bonus'
+
                     # set stats key
                     set_msg_by_path('stats.' + stat_key, entry_stat_key_path)
 
