@@ -4,7 +4,7 @@ from scrapy.http.response import Response
 from scrapy.utils.project import get_project_settings
 
 from ornacodex.items import Image
-from ornacodex.spiders._base import UrlBuilder
+from ornacodex.utils.url_utils import UrlBuilder
 
 
 settings = get_project_settings()

@@ -8,7 +8,7 @@ from scrapy.settings import Settings
 from scrapy.utils.project import get_project_settings
 
 from ornacodex.utils.converter import Converter, UniqueKeyGenerator
-from ornacodex.utils.exctractor import Exctractor
+from ornacodex.utils.extractor import Extractor
 
 from ..utils.path_config import TmpPathConfig
 
@@ -179,7 +179,7 @@ def scan(entries, itemtypes):
                         href = d.get('href')
                         icon = d.get('icon')
                         if href:
-                            d_list.append(Exctractor.extract_codex_id(href))
+                            d_list.append(Extractor.extract_codex_id(href))
                         elif icon:
                             icon_key = Converter.convert_key(
                                 base[id]['drops'][i][1][ii]['name'])
@@ -204,9 +204,9 @@ def scan(entries, itemtypes):
                             d_list.append(tmp)
                         else:
                             if category == 'followers':
-                                bb_base = Exctractor.extract_bond(
+                                bb_base = Extractor.extract_bond(
                                     base[id]['drops'][i][1][ii]['description'])
-                                bb = Exctractor.extract_bond(d['description'])
+                                bb = Extractor.extract_bond(d['description'])
                                 tmp = []
                                 for iii, bbb in enumerate(bb_base):
                                     if bbb['type'] == 'ABILITY':

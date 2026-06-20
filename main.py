@@ -1,30 +1,42 @@
 import argparse
 import importlib
+from pathlib import Path
 
 from scrapy.utils.project import get_project_settings
+
+SCRIPTS_DIR = Path(__file__).parent / 'ornacodex' / 'scripts'
+COMMANDS = sorted(
+    p.stem for p in SCRIPTS_DIR.glob('*.py') if not p.stem.startswith('_')
+)
+
 
 def main():
     parser = argparse.ArgumentParser(
         prog="OrnaCodexCrawler",
+        description="Crawl and process the Orna game codex (playorna.com/codex).",
     )
-    parser.add_argument('command', help='Command')
-    parser.add_argument('--tmp', help="tmp dir")
-    parser.add_argument('--output', help="output dir")
-    parser.add_argument('--extra', help="extra dir")
-    parser.add_argument('--dump', help="dump dir")
-    parser.add_argument('--export', help="export dir")
-    parser.add_argument('--httpcache', action='store_true', help='enable scrapy httpcache')
-    parser.add_argument('--base', help='Set BASE_URL')
+    parser.add_argument(
+        'command', choices=COMMANDS,
+        help='Pipeline step to run, in typical order: download, codex, '
+             'dump_toml, export_extra, realm_raids, update_extra. '
+             'See README.md for what each one does.',
+    )
+    parser.add_argument('--tmp', help="override TMP_DIR (raw per-language crawl output)")
+    parser.add_argument('--output', help="override OUTPUT_DIR (merged codex.json + i18n)")
+    parser.add_argument('--extra', help="override EXTRA_DIR (hand-maintained TOML extras)")
+    parser.add_argument('--dump', help="override DUMP_DIR (TOML dump of the codex)")
+    parser.add_argument('--export', help="override EXPORT_EXTRA_DIR (JSON export of EXTRA_DIR)")
+    parser.add_argument('--httpcache', action='store_true', help='enable Scrapy HTTP cache')
+    parser.add_argument('--base', help='override BASE_URL (default: https://playorna.com)')
 
     args = parser.parse_args()
-    command = args.command
-    try:
-        mod = importlib.import_module(f'ornacodex.scripts.{command}')
-    except Exception as e:
-        print(f'Load module {command} failed: {e}')
-        exit(1)
 
-    settings  = get_project_settings()
+    try:
+        mod = importlib.import_module(f'ornacodex.scripts.{args.command}')
+    except Exception as e:
+        parser.error(f'failed to load command {args.command!r}: {e}')
+
+    settings = get_project_settings()
     if args.tmp:
         settings.set('TMP_DIR', args.tmp)
     if args.output:
@@ -39,7 +51,9 @@ def main():
         settings.set('HTTPCACHE_ENABLED', True)
     if args.base:
         settings.set('BASE_URL', args.base)
+
     mod.run(settings)
+
 
 if __name__ == '__main__':
     main()

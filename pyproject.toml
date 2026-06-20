@@ -1,8 +1,14 @@
 [project]
 name = "OrnaCodexCrawler"
 version = "1.0.0"
-description = "Crawler for Orna Codex"
+description = "Crawler and data pipeline for the Orna game codex (playorna.com)"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ['scrapy', 'tomlkit']
+dependencies = ["scrapy", "tomlkit"]
 license = "MIT"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

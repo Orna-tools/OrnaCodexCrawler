@@ -7,7 +7,7 @@ from scrapy.http.response import Response
 from scrapy.utils.project import get_project_settings
 
 from ..items import ItemTypes
-from ..utils.exctractor import Exctractor
+from ..utils.extractor import Extractor
 from ..utils.url_utils import UrlBuilder
 
 settings = get_project_settings()
@@ -70,8 +70,14 @@ class Spider(scrapy.Spider):
         )
 
     async def parse_list(self, response: Response, output: set):
-        for elem in response.xpath('//div[@class="codex-entries"]/a'):
-            output.add(Exctractor.extract_codex_id(elem.attrib['href'])[-1])
+        entries = response.xpath('//div[@class="codex-entries"]/a')
+        if not entries:
+            # Past the last page for this item type: stop paginating and
+            # signal `parse()` to move on to the next type.
+            self.event.set()
+            return
+        for elem in entries:
+            output.add(Extractor.extract_codex_id(elem.attrib['href'])[-1])
         yield self.parse_page(response, output)
 
     async def parse_err(self, response: Response):

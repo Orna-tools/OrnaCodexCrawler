@@ -1,3 +1,9 @@
+"""Helpers for pulling structured data out of codex page markup.
+
+These operate on already-fetched Scrapy `Selector`/`SelectorList` objects and
+plain strings; they don't perform any network I/O themselves.
+"""
+
 import re
 
 from .url_utils import UrlParser
@@ -7,14 +13,17 @@ chance_pattern = re.compile(r'(?P<NAME>.+) \((?P<VALUE>\d+(\.\d+)?\%)\)$')
 ability_pattern = re.compile(r'^\+(?P<NAME>.+)\: (?P<VALUE>.+)$')
 bonus_pattern = re.compile(r'^(?!\+)(?P<NAME>.+)\: (?P<VALUE>.+)$')
 
-class Exctractor:
+
+class Extractor:
 
     @classmethod
     def extract_kv(cls, text: str) -> tuple[str, str] | tuple[str]:
+        """Split a "Key: Value" (or "Key：Value") string into its parts."""
         return tuple(s.strip() for s in split_pattern.split(text, maxsplit=1))
 
     @classmethod
     def extract_chance(cls, s: str) -> tuple[str, str] | None:
+        """Split "Name (12.5%)" into ("Name", "12.5%"), or return None if no match."""
         match = chance_pattern.search(s.strip())
         if match:
             name = match.group('NAME')
@@ -23,14 +32,15 @@ class Exctractor:
         return None
 
     @classmethod
-    def extract_drop(cls, drop):
+    def extract_drop(cls, drop) -> dict:
+        """Extract one entry from a drop/reward list (a single <a>/<div> row)."""
         drop_struct = {}
         bond = drop.xpath('./span[@class="emph"]')
-        if any(bond):
+        if bond:
             drop_struct['name'] = split_pattern.split(bond.xpath('string()').get())[0]
             drop_struct['description'] = ''.join(bond.xpath('../text()').getall()).strip()
             return drop_struct
-        name = drop.xpath('.//span').xpath('string()').get().strip()
+        name = (drop.xpath('.//span').xpath('string()').get() or '').strip()
         match = cls.extract_chance(name)
         if match:
             name, chance = match
@@ -43,16 +53,20 @@ class Exctractor:
         if href:
             drop_struct['href'] = href
         description = drop.xpath('./div[@class="emph"]').xpath('string()')
-        if any(description):
+        if description:
             drop_struct['description'] = description.get().strip()
         return drop_struct
-    
+
     @classmethod
-    def extract_codex_id(cls, codex: str) -> list:
+    def extract_codex_id(cls, codex: str) -> list[str]:
+        """Pull [category, id] out of a codex href like "/codex/items/foo/"."""
         return codex.strip('/').split('/')[-2:]
 
     @classmethod
-    def extract_bond(cls, bond_text: str) -> list:
+    def extract_bond(cls, bond_text: str) -> list[dict]:
+        """Parse a follower's bestial-bond description into typed entries
+        (BOND / ABILITY / BONUS / BUFF).
+        """
         bb = []
         for b in map(lambda b: b.strip(), bond_text.split(',')):
             m = chance_pattern.match(b)
@@ -79,8 +93,8 @@ class Exctractor:
                 })
                 continue
             bb.append({
-                    'name': b.strip('+'),
-                    'type': 'BUFF'
-                })
-            
+                'name': b.strip('+'),
+                'type': 'BUFF'
+            })
+
         return bb

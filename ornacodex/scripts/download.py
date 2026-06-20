@@ -7,7 +7,7 @@ from scrapy.settings import Settings
 from scrapy.utils.log import configure_logging
 from scrapy.utils.project import get_project_settings
 
-from ..utils.exctractor import Exctractor
+from ..utils.extractor import Extractor
 from ..utils.path_config import TmpPathConfig
 
 from ..spiders import bosses, classes, followers, item_types, items, monsters, raids, spells
@@ -82,7 +82,7 @@ def crawl_codex(settings: Settings):
                     for e in entries:
                         indexed[name].add(e['id'])
                         for _, drop in e.get('drops', []):
-                            for category, id in (Exctractor.extract_codex_id(m) for m in (d.get('href') for d in drop) if m):
+                            for category, id in (Extractor.extract_codex_id(m) for m in (d.get('href') for d in drop) if m):
                                 if category not in scanned:
                                     scanned[category] = set()
                                 scanned[category].add(id)
@@ -100,10 +100,10 @@ def crawl_codex(settings: Settings):
                                  start_ids=start_ids)
 
             if flag:
-                yield runner.stop()
-                continue
-            else:
-                yield runner.join()
+                # Nothing missing this round: cross-reference resolution has
+                # converged, no crawls were queued, so there's nothing to join.
+                break
+            yield runner.join()
 
             for (language, crawler) in product(languages, crawlers):
                 name = crawler.Spider.name
