@@ -5,7 +5,6 @@ from typing import Any, Iterator
 from scrapy.crawler import CrawlerRunner
 from scrapy.settings import Settings
 from scrapy.utils.log import configure_logging
-from scrapy.utils.project import get_project_settings
 
 from ..utils.extractor import Extractor
 from ..utils.path_config import TmpPathConfig
@@ -15,10 +14,25 @@ from ..spiders import bosses, classes, followers, item_types, items, monsters, r
 from twisted.internet import asyncioreactor
 asyncioreactor.install()
 
-crawlers = [
+ALL_CRAWLERS = [
     bosses, classes, followers, items,
     monsters, raids, spells
 ]
+CRAWLERS_BY_NAME = {c.Spider.name: c for c in ALL_CRAWLERS}
+
+
+def select_crawlers(only: list[str] | None = None) -> list:
+    """Resolve which category crawlers to run, given an optional --only filter
+    (a list of category names, e.g. ['items']). Defaults to every category.
+    """
+    if not only:
+        return ALL_CRAWLERS
+    unknown = [name for name in only if name not in CRAWLERS_BY_NAME]
+    if unknown:
+        raise ValueError(
+            f"--only: unknown categories {unknown!r}, "
+            f"choose from {sorted(CRAWLERS_BY_NAME)}")
+    return [CRAWLERS_BY_NAME[name] for name in only]
 
 
 def merge2sort(iter1: Iterator[Any], iter2: Iterator[Any]) -> Iterator[Any]:
@@ -32,6 +46,10 @@ def crawl_codex(settings: Settings):
 
     base_language = settings.get('BASE_LANGUAGE')
     languages = settings.get('SUPPORTED_LANGUAGES', [])
+
+    only = settings.get('CRAWL_ONLY')
+    crawlers = select_crawlers(only)
+
     json_feed = {
         'format': 'json',
         'encoding': 'utf8',
@@ -56,15 +74,18 @@ def crawl_codex(settings: Settings):
             runner.crawl(crawler.Spider, language=language)
             yield runner.join()
 
-        # ItemTypes
-        settings['FEEDS'] = {
-            f'{tmp_dir_config.itemtypes}/%(language)s.json': json_feed
-        }
-        runner.settings = settings
-        for language in languages:
-            runner.crawl(item_types.Spider, language=language,
-                         name_only=(language != base_language))
-            yield runner.join()
+        # ItemTypes -- only used by `codex` (for item_type cross-referencing),
+        # not by `clean_items`, so skip it whenever a restricted category set
+        # was requested via --only.
+        if not only:
+            settings['FEEDS'] = {
+                f'{tmp_dir_config.itemtypes}/%(language)s.json': json_feed
+            }
+            runner.settings = settings
+            for language in languages:
+                runner.crawl(item_types.Spider, language=language,
+                             name_only=(language != base_language))
+                yield runner.join()
 
         # Miss
         settings['FEEDS'] = {
@@ -128,6 +149,5 @@ def crawl_codex(settings: Settings):
 
 
 def run(settings: Settings):
-    settings = get_project_settings()
     settings['LOG_LEVEL'] = 'INFO'
     crawl_codex(settings)

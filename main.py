@@ -35,6 +35,22 @@ def main():
              "request silently fail even though e.g. curl works fine -- see "
              "ornacodex/utils/network.py.",
     )
+    parser.add_argument(
+        '--loglevel', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help="override Scrapy's log level, including any default a command sets "
+             "internally (e.g. `download` normally forces INFO -- pass "
+             "--loglevel DEBUG to see per-request detail: actual HTTP statuses, "
+             "robots.txt/offsite filtering, retries, DNS errors, etc.)",
+    )
+    parser.add_argument(
+        '--only',
+        help="`download` only: comma-separated list of categories to crawl "
+             "(bosses,classes,followers,items,monsters,raids,spells), skipping "
+             "everything else plus the ItemTypes crawl. Much faster when you "
+             "don't need the full codex -- e.g. `--only items` for feeding "
+             "`clean_items`, which never reads the other categories. Default: "
+             "all categories.",
+    )
 
     args = parser.parse_args()
 
@@ -61,6 +77,10 @@ def main():
     if args.force_ipv4:
         from ornacodex.utils.network import force_ipv4_resolution
         force_ipv4_resolution()
+    if args.loglevel:
+        settings.set('LOG_LEVEL', args.loglevel, priority='cmdline')
+    if args.only:
+        settings.set('CRAWL_ONLY', [c.strip() for c in args.only.split(',') if c.strip()])
 
     mod.run(settings)
 
