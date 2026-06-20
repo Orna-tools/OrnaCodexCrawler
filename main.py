@@ -28,6 +28,13 @@ def main():
     parser.add_argument('--export', help="override EXPORT_EXTRA_DIR (JSON export of EXTRA_DIR)")
     parser.add_argument('--httpcache', action='store_true', help='enable Scrapy HTTP cache')
     parser.add_argument('--base', help='override BASE_URL (default: https://playorna.com)')
+    parser.add_argument(
+        '--force-ipv4', action='store_true',
+        help="resolve DNS to IPv4 only. Workaround for hosts where IPv6 DNS "
+             "records exist but aren't actually routable, which can make every "
+             "request silently fail even though e.g. curl works fine -- see "
+             "ornacodex/utils/network.py.",
+    )
 
     args = parser.parse_args()
 
@@ -51,6 +58,9 @@ def main():
         settings.set('HTTPCACHE_ENABLED', True)
     if args.base:
         settings.set('BASE_URL', args.base)
+    if args.force_ipv4:
+        from ornacodex.utils.network import force_ipv4_resolution
+        force_ipv4_resolution()
 
     mod.run(settings)
 

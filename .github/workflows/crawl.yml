@@ -38,7 +38,9 @@ jobs:
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           
       - name: Download and Clean Codex Data
-        run: ./venv/bin/python main.py download
+        run: |
+          ./venv/bin/python main.py download --force-ipv4
+          ./venv/bin/python main.py clean_items
         
       - name: Clean OA_Database repository
         run: |

@@ -53,14 +53,16 @@ earlier steps have produced their files.
 |---|----------------|---------------|
 | 1 | `download`     | Crawls every codex category, in every supported language, into raw per-language JSON. Also resolves cross-references (e.g. a monster drop pointing at an item that wasn't crawled yet) in up to 3 follow-up passes. |
 | 2 | `codex`        | Merges the raw crawl output into one cross-referenced `codex.json` (entries, icon map, filter options, sort metadata) plus a translation file per language. |
-| 3 | `dump_toml`    | Converts `codex.json` and the translation files into TOML, which diffs much more readably than minified JSON in version control. |
-| 4 | `export_extra` | Converts the hand-maintained TOML files in `EXTRA_DIR` (see `update_extra` below) into JSON for downstream consumption. |
-| 5 | `realm_raids`  | Builds `realm.json` (tier/HP/icon/localized name for every raid) and downloads the raid icon images. |
-| 6 | `update_extra` | Regenerates the editable TOML stubs in `EXTRA_DIR`: a boss-scaling list for weapons/armor, and per-boss/monster/raid files for hand-filling elemental weaknesses/resistances/immunities. Existing hand-edited values are preserved across runs. |
+| 3 | `clean_items`  | Republishes `download`'s raw per-language item entries (id, name, icon, category, description, stats, drops, ...) as `output/cleaned/<language>/items.json`, for consumers like [OA_Database](https://github.com/Orna-tools/OA_Database) that want self-contained item data without joining against `codex.json`/i18n. Only needs `download`, not `codex`. |
+| 4 | `dump_toml`    | Converts `codex.json` and the translation files into TOML, which diffs much more readably than minified JSON in version control. |
+| 5 | `export_extra` | Converts the hand-maintained TOML files in `EXTRA_DIR` (see `update_extra` below) into JSON for downstream consumption. |
+| 6 | `realm_raids`  | Builds `realm.json` (tier/HP/icon/localized name for every raid) and downloads the raid icon images. |
+| 7 | `update_extra` | Regenerates the editable TOML stubs in `EXTRA_DIR`: a boss-scaling list for weapons/armor, and per-boss/monster/raid files for hand-filling elemental weaknesses/resistances/immunities. Existing hand-edited values are preserved across runs. |
 
 ```bash
 python main.py download
 python main.py codex
+python main.py clean_items     # optional, only needed for OA_Database-style consumers
 python main.py dump_toml       # optional
 python main.py update_extra    # optional, then hand-edit the generated TOML
 python main.py export_extra    # optional, after editing the TOML above
@@ -78,6 +80,7 @@ python main.py realm_raids     # optional
 | `--export DIR` | `EXPORT_EXTRA_DIR` (JSON export of `EXTRA_DIR`) | `export` |
 | `--base URL` | `BASE_URL` | `https://playorna.com` |
 | `--httpcache` | enables Scrapy's HTTP cache (handy while iterating locally) | off |
+| `--force-ipv4` | resolve DNS to IPv4 only — workaround for hosts with broken/unreachable IPv6 routing (symptom: `download`/`realm_raids` finish instantly with 0 pages crawled, but `curl https://playorna.com` works fine) | off |
 
 All of the above are also plain Scrapy settings in `ornacodex/settings.py`,
 including `SUPPORTED_LANGUAGES`.
@@ -88,9 +91,13 @@ including `SUPPORTED_LANGUAGES`.
 output/
 ├── index.json        # version, timestamp, and paths to the files below
 ├── codex.json         # { main, icons, options, sorts, base_stats }
-└── i18n/
-    ├── en.json
-    ├── es.json
+├── i18n/
+│   ├── en.json
+│   ├── es.json
+│   └── ...
+└── cleaned/           # only after `clean_items`
+    ├── en/items.json
+    ├── es/items.json
     └── ...
 ```
 
