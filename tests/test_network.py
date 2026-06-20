@@ -37,3 +37,28 @@ def test_force_ipv4_resolution_is_idempotent(monkeypatch):
     network.force_ipv4_resolution()
     assert socket.getaddrinfo is patched_fn
     socket.getaddrinfo = network._original_getaddrinfo
+
+
+def test_force_ipv4_resolution_patches_gairesolver_default(monkeypatch):
+    """Regression test: socket.getaddrinfo alone never reaches Twisted's
+    actual resolver for the asyncio reactor, since GAIResolver captures
+    `getaddrinfo` as a baked-in __init__ default at import time. Twisted's
+    base.py instantiates it with no explicit getaddrinfo arg
+    (`_GAIResolver(reactor, self.getThreadPool)`), so the default has to
+    actually be patched for this to work in practice.
+    """
+    from twisted.internet._resolver import GAIResolver
+
+    monkeypatch.setattr(network, '_patched', False)
+    network.force_ipv4_resolution()
+    try:
+        class FakeReactor:
+            def getThreadPool(self):
+                return None
+
+        # Mirrors exactly how twisted/internet/base.py:_initThreads() calls it
+        resolver = GAIResolver(FakeReactor(), FakeReactor().getThreadPool)
+        assert resolver._getaddrinfo is not network._original_getaddrinfo
+        assert resolver._getaddrinfo.__name__ == 'getaddrinfo_ipv4'
+    finally:
+        socket.getaddrinfo = network._original_getaddrinfo

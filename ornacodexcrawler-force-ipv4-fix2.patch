@@ -1,0 +1,94 @@
+diff --git a/ornacodex/utils/network.py b/ornacodex/utils/network.py
+index cfbe0f7..c8a162c 100644
+--- a/ornacodex/utils/network.py
++++ b/ornacodex/utils/network.py
+@@ -10,11 +10,23 @@ instant rather than a slow timeout -- so every request can silently die
+ before it ever leaves the box, even though the site is perfectly reachable
+ over IPv4.
+ 
+-`force_ipv4_resolution()` works around this by making every DNS lookup in
+-this process return IPv4 addresses only, so Twisted/Scrapy never attempts
+-the broken IPv6 path in the first place. Enable it with `--force-ipv4` (see
+-main.py) if `download`/`realm_raids` aren't reaching playorna.com but
+-`curl https://playorna.com` works fine from the same machine.
++`force_ipv4_resolution()` works around this two ways:
++
++1. Patches `socket.getaddrinfo` so any code that looks it up dynamically
++   (`socket.getaddrinfo(...)`) only ever sees IPv4 results.
++2. Patches `twisted.internet._resolver.GAIResolver` -- the resolver Twisted
++   actually uses for the asyncio reactor this project runs on. GAIResolver
++   captures `getaddrinfo` as a baked-in default parameter at import time
++   (`from socket import getaddrinfo`), so (1) alone never reaches it; the
++   default has to be replaced directly on the class.
++
++If `download`/`realm_raids` still aren't reaching playorna.com after this
++(but `curl https://playorna.com` works fine from the same machine), the
++most reliable fix is at the OS level instead -- e.g. disabling IPv6 system-
++wide, or pinning playorna.com to a known-working IPv4 address in
++/etc/hosts -- since Scrapy wraps the resolver in another caching layer
++(`scrapy.resolver.CachingHostnameResolver`) that this can't fully verify
++against every Scrapy/Twisted version.
+ """
+ 
+ import socket
+@@ -24,7 +36,7 @@ _patched = False
+ 
+ 
+ def force_ipv4_resolution() -> None:
+-    """Monkeypatch `socket.getaddrinfo` to only ever return IPv4 results.
++    """Make DNS lookups in this process return IPv4 addresses only.
+ 
+     Idempotent: safe to call more than once.
+     """
+@@ -36,4 +48,18 @@ def force_ipv4_resolution() -> None:
+         return _original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+ 
+     socket.getaddrinfo = getaddrinfo_ipv4
++
++    try:
++        from twisted.internet._resolver import GAIResolver
++    except ImportError:
++        GAIResolver = None
++
++    if GAIResolver is not None:
++        defaults = GAIResolver.__init__.__defaults__
++        if defaults:
++            GAIResolver.__init__.__defaults__ = tuple(
++                getaddrinfo_ipv4 if d is _original_getaddrinfo else d
++                for d in defaults
++            )
++
+     _patched = True
+diff --git a/tests/test_network.py b/tests/test_network.py
+index e335c69..82d32f6 100644
+--- a/tests/test_network.py
++++ b/tests/test_network.py
+@@ -37,3 +37,28 @@ def test_force_ipv4_resolution_is_idempotent(monkeypatch):
+     network.force_ipv4_resolution()
+     assert socket.getaddrinfo is patched_fn
+     socket.getaddrinfo = network._original_getaddrinfo
++
++
++def test_force_ipv4_resolution_patches_gairesolver_default(monkeypatch):
++    """Regression test: socket.getaddrinfo alone never reaches Twisted's
++    actual resolver for the asyncio reactor, since GAIResolver captures
++    `getaddrinfo` as a baked-in __init__ default at import time. Twisted's
++    base.py instantiates it with no explicit getaddrinfo arg
++    (`_GAIResolver(reactor, self.getThreadPool)`), so the default has to
++    actually be patched for this to work in practice.
++    """
++    from twisted.internet._resolver import GAIResolver
++
++    monkeypatch.setattr(network, '_patched', False)
++    network.force_ipv4_resolution()
++    try:
++        class FakeReactor:
++            def getThreadPool(self):
++                return None
++
++        # Mirrors exactly how twisted/internet/base.py:_initThreads() calls it
++        resolver = GAIResolver(FakeReactor(), FakeReactor().getThreadPool)
++        assert resolver._getaddrinfo is not network._original_getaddrinfo
++        assert resolver._getaddrinfo.__name__ == 'getaddrinfo_ipv4'
++    finally:
++        socket.getaddrinfo = network._original_getaddrinfo
